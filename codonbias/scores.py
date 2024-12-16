@@ -363,7 +363,7 @@ class CodonAdaptationIndex(ScalarScore, VectorScore):
     """
 
     def __init__(
-        self, ref_seq, k_mer=1, genetic_code=1, ignore_stop=True, pseudocount=1
+        self, ref_seq=None, k_mer=1, genetic_code=1, ignore_stop=True, pseudocount=1
     ):
         self.counter = CodonCounter(
             k_mer=k_mer,
@@ -374,7 +374,8 @@ class CodonAdaptationIndex(ScalarScore, VectorScore):
         self.k_mer = k_mer
         self.pseudocount = pseudocount
 
-        self._calc_weights(ref_seq)
+        if ref_seq is not None:
+            self._calc_weights(ref_seq)
 
     def _calc_score(self, seq):
         counts = self.counter.count(seq).counts
@@ -398,6 +399,10 @@ class CodonAdaptationIndex(ScalarScore, VectorScore):
             .droplevel(aa_levels)
         )
 
+        self.log_weights = np.log(self.weights)
+
+    def load_weights(self, weights):
+        self.weights = weights
         self.log_weights = np.log(self.weights)
 
 
@@ -740,7 +745,7 @@ class CodonPairBias(ScalarScore, VectorScore, WeightScore):
     """
 
     def __init__(
-        self, ref_seq, k_mer=2, genetic_code=1, ignore_stop=True, pseudocount=1
+        self, ref_seq=None, k_mer=2, genetic_code=1, ignore_stop=True, pseudocount=1
     ):
         self.counter = CodonCounter(
             k_mer=k_mer,
@@ -751,7 +756,8 @@ class CodonPairBias(ScalarScore, VectorScore, WeightScore):
         self.k_mer = k_mer
         self.pseudocount = pseudocount
 
-        self.weights = self._calc_model_weights(ref_seq)
+        if ref_seq is not None:
+            self.weights = self._calc_model_weights(ref_seq)
 
     def _calc_score(self, seq):
         counts = self.counter.count(seq).counts
@@ -835,6 +841,9 @@ class CodonPairBias(ScalarScore, VectorScore, WeightScore):
             / freqs["freq_aa_mer"]
         )
         return freqs
+
+    def load_weights(self, weights):
+        self.weights = weights
 
 
 class RelativeCodonBiasScore(ScalarScore, VectorScore, WeightScore):
