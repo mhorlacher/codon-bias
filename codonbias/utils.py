@@ -1,15 +1,15 @@
 import os
+import requests
+from io import StringIO
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
-complement = {'A': 'T',
-              'C': 'G',
-              'G': 'C',
-              'T': 'A'}
-gc = pd.read_csv(f'{os.path.dirname(__file__)}/genetic_code_ncbi.csv',
-                 index_col=0).sort_index()
+complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
+gc = pd.read_csv(
+    f"{os.path.dirname(__file__)}/genetic_code_ncbi.csv", index_col=0
+).sort_index()
 # https://en.wikipedia.org/wiki/List_of_genetic_codes
 
 
@@ -25,13 +25,13 @@ def translate(seq, return_str=False, genetic_code=1):
         NCBI genetic code ID, by default 1
     """
     genetic_code = str(genetic_code)
-    seq_nt = seq.upper().replace('U', 'T')
+    seq_nt = seq.upper().replace("U", "T")
     code = gc[genetic_code]
     n = len(seq) - (len(seq) % 3)
-    seq_aa = code.loc[[seq_nt[i:i+3] for i in range(0, n, 3)]].to_frame('aa')
+    seq_aa = code.loc[[seq_nt[i : i + 3] for i in range(0, n, 3)]].to_frame("aa")
 
     if return_str:
-        seq_aa = ''.join(seq_aa['aa'])
+        seq_aa = "".join(seq_aa["aa"])
 
     return seq_aa
 
@@ -51,7 +51,7 @@ def reverse_complement(seq):
     str
        The reverse complement sequence in {A,C,G,T}.
     """
-    return ''.join([complement[b] for b in seq[::-1]])
+    return "".join([complement[b] for b in seq[::-1]])
 
 
 def geomean(log_weights, counts):
@@ -74,7 +74,9 @@ def geomean(log_weights, counts):
         Geometric mean.
     """
     nn = log_weights.index[np.isfinite(log_weights)]
-    return np.exp((log_weights[nn] * counts.reindex(nn)).sum() / counts.reindex(nn).sum())
+    return np.exp(
+        (log_weights[nn] * counts.reindex(nn)).sum() / counts.reindex(nn).sum()
+    )
 
 
 def mean(weights, counts):
@@ -121,7 +123,7 @@ def fetch_GCN_from_GtRNAdb(url=None, genome=None, domain=None):
 
     Examples
     --------
-    >>> fetch_GCN_from_GtRNAdb(url='http://gtrnadb.ucsc.edu/genomes/eukaryota/Scere3/')
+    >>> fetch_GCN_from_GtRNAdb(url="http://gtrnadb.ucsc.edu/genomes/eukaryota/Scere3/")
     anti_codon  GCN
     10        AAC   14
     35        AAT   13
@@ -129,7 +131,7 @@ def fetch_GCN_from_GtRNAdb(url=None, genome=None, domain=None):
     13        AGA   11
     ....
 
-    >>> fetch_GCN_from_GtRNAdb(genome='Scere3', domain='eukaryota')
+    >>> fetch_GCN_from_GtRNAdb(genome="Scere3", domain="eukaryota")
     anti_codon  GCN
     10        AAC   14
     35        AAT   13
@@ -139,12 +141,13 @@ def fetch_GCN_from_GtRNAdb(url=None, genome=None, domain=None):
 
     """
     if genome is not None and domain is not None:
-        url = f'http://gtrnadb.ucsc.edu/genomes/{domain}/{genome}/'
-    tables = pd.read_html(url)
+        url = f"http://gtrnadb.ucsc.edu/genomes/{domain}/{genome}/"
+
+    tables = pd.read_html(StringIO(requests.get(url, verify=False).text))
 
     return pd.concat(
-        [process_GtRNAdb_table(t) for t in tables[-4:]],
-        axis=0, ignore_index=True).sort_values('anti_codon')
+        [process_GtRNAdb_table(t) for t in tables[-4:]], axis=0, ignore_index=True
+    ).sort_values("anti_codon")
 
 
 def process_GtRNAdb_table(table):
@@ -162,14 +165,18 @@ def process_GtRNAdb_table(table):
     pandas.DataFrame
         tRNA gene copy numbers with the columns: `anti_codon`, `GCN`.
     """
-    df = table.loc[:, table.dtypes == object].apply(lambda col: col.str.split(' ').str[-2:])
+    df = table.loc[:, table.dtypes == object].apply(
+        lambda col: col.str.split(" ").str[-2:]
+    )
     # flatten
-    df = pd.DataFrame({'pair': df.values[df.apply(lambda col: col.str.len()).values == 2]})
+    df = pd.DataFrame(
+        {"pair": df.values[df.apply(lambda col: col.str.len()).values == 2]}
+    )
     # rearrange
-    df['anti_codon'] = df['pair'].str[0]
-    df['GCN'] = df['pair'].str[1].str.split('/').apply(lambda x: sum(map(int, x)))
+    df["anti_codon"] = df["pair"].str[0]
+    df["GCN"] = df["pair"].str[1].str.split("/").apply(lambda x: sum(map(int, x)))
 
-    return df.drop(columns='pair')
+    return df.drop(columns="pair")
 
 
 def greater_equal(x1, x2):
@@ -213,6 +220,7 @@ class ReferenceSelector(object):
     higher_is_better : bool, optional
         Defines the direction of the codon score, by default True
     """
+
     def __init__(self, score_object, seqs, higher_is_better=True):
         self.model = score_object
         self.seqs = seqs
@@ -222,7 +230,7 @@ class ReferenceSelector(object):
         if self.higher_is_better:
             self.scores = -self.scores
 
-        self.indices = np.argsort(self.scores, kind='stable')
+        self.indices = np.argsort(self.scores, kind="stable")
         self.indices = self.indices[~np.isnan(self.scores[self.indices])]
 
     def get_top_seqs(self, top=0.2):
@@ -256,7 +264,9 @@ class ReferenceSelector(object):
             Vector of sequence indices, sorted by the score.
         """
         if top <= 0:
-            raise ValueError('`top` argument must be a positive integer or a float in (0, 1).')
+            raise ValueError(
+                "`top` argument must be a positive integer or a float in (0, 1)."
+            )
         elif top < 1:
             itop = int(top * len(self.scores))
         else:
